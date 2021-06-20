@@ -6,6 +6,7 @@ import io
 import os
 from pybedtools import BedTool
 import matplotlib as mpl
+from collections import defaultdict
 
 def config_params(font_size=7):
 
@@ -174,7 +175,7 @@ def plot_snvs(sig, title, outpath='', fontsize = 12):
     plt.savefig(outpath + title + '.svg')
     plt.savefig(outpath + title + '.png', dpi = 600)
 
-    plt.show()
+    plt.close()
     
 def get_trinucleotide_context(df, genome):
     """
@@ -262,7 +263,21 @@ def mutational_profile(f, genome):
     
     else:
         plot_profile(df, os.path.basename(f))
-        
+    
+    dic_matrix = defaultdict(dict)
+    if 'SAMPLE' in df.columns:
+        for sample, data in df.groupby(by='SAMPLE'):
+            dic_s = data['VARIANT_CLASS'].value_counts().to_dict()
+            for s in snvs_order():
+                dic_matrix[sample][s] = dic_s.get(s, 0)
+    else:
+        sample = 'SAMPLE'
+        dic_s = df['VARIANT_CLASS'].value_counts().to_dict()
+        for s in snvs_order():
+            dic_matrix[sample][s] = dic_s.get(s, 0)
+
+    matrix = pd.DataFrame(dic_matrix).fillna(0).loc[snvs_order()].astype(int)
+    matrix.to_csv(f + '.matrix.tsv', sep ='\t', index = True, header = True)
 if __name__ == '__main__':
     fire.Fire(mutational_profile)
 
